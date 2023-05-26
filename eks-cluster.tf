@@ -6,13 +6,14 @@ module "eks" {
   source          = "terraform-aws-modules/eks/aws"
   version         = "17.24.0"
   cluster_name    = local.cluster_name
-  cluster_version = "1.20"
+  cluster_version = "1.24"
   subnets         = module.vpc.private_subnets
 
   vpc_id = module.vpc.vpc_id
 
   workers_group_defaults = {
     root_volume_type = "gp2"
+    kubelet_extra_args = "--max-pods=110"
   }
 
   worker_groups = [
@@ -21,14 +22,16 @@ module "eks" {
       instance_type                 = "t2.small"
       additional_userdata           = "echo foo bar"
       additional_security_group_ids = [aws_security_group.worker_group_mgmt_one.id]
-      asg_desired_capacity          = 2
+      asg_desired_capacity          = 10
+      asg_min_size                  = 9
+      asg_max_size                  = 11
     }
   ]
     
   map_roles = [
     {
-      rolearn  = "arn:aws:iam::470764335307:role/local-admin"
-      username = "arn:aws:iam::470764335307:role/local-admin"
+      rolearn  = "arn:aws:iam::163754997915:role/spacelift-eks-cluster"
+      username = "arn:aws:iam::163754997915:role/spacelift-eks-cluster"
       groups   = [local.deployment_k8s_rbac_group]
     }
   ]
@@ -86,7 +89,7 @@ resource "kubernetes_role" "deployer" {
 
   rule {
     api_groups = [""]
-    resources  = ["pods", "secrets", "services", "serviceaccounts"]
+    resources  = ["pods", "secrets", "services", "serviceaccounts", "configmaps"]
     verbs      = ["create", "get", "list", "update", "delete", "patch", "watch"]
   }
 
